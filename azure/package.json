@@ -1,0 +1,15 @@
+{
+  "name": "smalltv-cover-server-azure",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "axios": "1.20.0",
+    "sharp": "0.35.4"
+  }
+}

@@ -4,14 +4,14 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-test("real HTTP transport serves exact bytes and 304", async () => {
+for (const runtime of ["bun", "node"]) test(runtime + " HTTP transport serves exact bytes and 304", async () => {
   const dir = await mkdtemp(join(tmpdir(), "smalltv-test-"));
   const path = join(dir, "cover.png");
   await sharp({ create: { width: 240, height: 240, channels: 3,
     background: { r: 255, g: 0, b: 0 } } }).png().toFile(path);
   const probe = Bun.serve({ port: 0, fetch: () => new Response() });
   const port = probe.port!; probe.stop(true);
-  const child = Bun.spawn([process.execPath, "index.ts"], {
+  const child = Bun.spawn(runtime === "bun" ? [process.execPath, "index.ts"] : ["node", "azure/server.mjs"], {
     cwd: join(import.meta.dir, ".."), env: { ...process.env, COVER_FILE: path, PORT: String(port), HOST: "127.0.0.1" },
     stdout: "ignore", stderr: "pipe",
   });

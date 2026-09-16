@@ -182,3 +182,6 @@ prompt-creator.py
 tests
 promptCreator.py
 browser.json
+
+azure/server.mjs
+azure/*.zip
