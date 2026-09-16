@@ -1,111 +1,41 @@
-# YouTube Music Live SVG
+# SmallTV cover server
 
-This project provides a Bun.js application that serves SVG visualizations based on YouTube Music history. The application offers the following main functionalities:
+VersiÃ³n mÃ­nima de [YouTubeMusicLiveSVG](https://github.com/edgarburgues/YouTubeMusicLiveSVG), con su historial y licencia GPL-3.0 conservados. Solo obtiene la carÃ¡tula de la Ãºltima entrada del historial de YouTube Music y la entrega al [firmware ESP8266](https://github.com/edgarburgues/smalltv-mod/tree/cover-only).
 
-<table align="center">
-  <tr>
-    <td colspan="" align="center">
-      <strong>/svg</strong>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <img src="https://youtubemusiclivesvg.azurewebsites.net/api/svg" />
-    </td>
-  </tr>
-</table>
+## Arranque
 
-## 1. API Endpoints
+Instala Bun y ejecuta `bun install --frozen-lockfile`. Crea un archivo local `.env`:
 
-- `/api/history`: Retrieves the history of videos played on YouTube Music.
-- `/api/svg`: Generates an SVG visualization for the first video in the YouTube Music history.
-- `/api/svg-vertical`: Generates a vertical SVG visualization for the first video in the YouTube Music history.
-- `/api/svg-vinyl`: Generates a rotating vinyl SVG visualization for the first video in the YouTube Music history.
+```dotenv
+BROWSER_JSON='{"cookie":"TU_COOKIE_DE_YOUTUBE_MUSIC"}'
+PORT=3000
+```
 
-## 2. SVG Generation
+Utiliza el mismo BROWSER_JSON que ya funciona en la app original. Debe contener la cookie __Secure-3PAPISID. No lo subas a GitHub. Bun carga .env automÃ¡ticamente.
 
-- Generates dynamic SVG content based on the video title, author, and thumbnail.
-- Utilizes dominant colors from the video's thumbnail to create a gradient background and animated bars.
+Ejecuta `bun start` o `docker compose up -d --build`. El servidor debe permanecer encendido y accesible desde el Wi-Fi del SmallTV. Configura en el dispositivo:
 
-## 3. Credential Configuration (browser.json)
+```text
+http://IP_DEL_SERVIDOR:3000/api/cover.rgb565
+```
 
-The application uses **browser.json** as an environment variable (`BROWSER_JSON`) instead of OAuth to authenticate requests to the YouTube Music API. To obtain `browser.json`, follow these steps:
+Permite TCP 3000 en el cortafuegos de tu red local si es necesario. localhost en el dispositivo no apunta al ordenador.
 
-### Generating `browser.json` with `ytmusicapi`
+## Contrato de imagen
 
-1. Install `ytmusicapi` by following the instructions in its [official repository](https://ytmusicapi.readthedocs.io/).
-2. Create a virtual environment to manage the installation:
+- GET /api/cover.rgb565: 240 Ã— 240, RGB565 little-endian, filas de arriba a abajo, sin cabecera binaria, exactamente 115200 bytes.
+- Content-Type: application/octet-stream; Content-Length: 115200.
+- X-Cover-Format: rgb565le-240x240-v1.
+- ETag identifica el contenido. If-None-Match devuelve 304 sin cuerpo si no cambia.
+- La imagen se recorta centrada para llenar el cuadrado, sin deformarla.
+- Consulta del historial como mÃ¡ximo cada 10 segundos, compartida entre peticiones concurrentes.
+- Fallos temporales conservan la Ãºltima carÃ¡tula; X-Cover-Stale indica true. Sin una imagen vÃ¡lida devuelve 503.
+- GET /health informa ready/stale. No solicita datos de YouTube.
 
-   ```bash
-   python -m venv ymusicapi-browser
-   source ymusicapi-browser/bin/activate # On Windows use ymusicapi-browser\Scripts\activate
-   pip install ytmusicapi
-   ```
+La consulta usa el historial: no detecta pausa, progreso ni garantiza reproducciÃ³n en tiempo real. Las credenciales permanecen en el servidor. Este servicio HTTP estÃ¡ pensado para una LAN de confianza.
 
-3. Generate `browser.json` by running the following and following the instructions:
+## Pruebas
 
-   ```bash
-   python -m ytmusicapi setup
-   ```
+`bun run typecheck` y `bun test`.
 
-4. Copy the content of the generated `browser.json` file and set it as the `BROWSER_JSON` environment variable before running the application.
-
-## 4. Deployment
-
-### Local Deployment
-
-To deploy the application locally:
-
-1. **Clone the Repository**:
-
-   ```bash
-   git clone https://github.com/edgarburgues/YouTubeMusicLiveSVG.git
-   cd YouTubeMusicLiveSVG
-   ```
-
-2. **Set Up Environment Variables**:  
-   Create a `.env` file in the project's root directory with the following content:
-
-   ```env
-   BROWSER_JSON=<your_browser_json_content>
-   ```
-
-3. **Install Dependencies**:
-
-   ```bash
-   bun install
-   ```
-
-4. **Run the Application**:  
-   The application will be accessible at `http://localhost:3000`.
-
-   ```bash
-   bun run start
-   ```
-
-### Docker Deployment
-
-To deploy using Docker:
-
-1. **Pull and Run the Docker Image from Docker Hub**:
-
-   ```bash
-   docker pull edgarburgues/youtube-music-live-svg
-   docker run -p 3000:3000 -e BROWSER_JSON="<your_browser_json_content>" edgarburgues/youtube-music-live-svg
-   ```
-
-2. The application will be accessible at `http://localhost:3000`.
-
-## 5. File Descriptions
-
-- `.dockerignore`: Specifies files and directories to ignore when building the Docker image.
-- `.gitignore`: Specifies files and directories to ignore in Git.
-- `Dockerfile`: Docker configuration file to build the application image.
-- `src/controllers/ytmusic.controller.ts`: Contains the controller logic for handling API requests related to YouTube Music.
-- `src/middlewares/error.middleware.ts`: Contains the middleware for handling errors.
-- `src/routes/ytmusic.router.ts`: Defines the API routes for the application.
-- `src/utils/cacheHeaders.ts`: Contains a utility function to set cache headers.
-- `src/utils/logger.ts`: Configures the logger used for logging messages.
-- `src/utils/svg_templates.ts`: Contains functions to generate SVG content.
-- `src/utils/utils.ts`: Contains utility functions for fetching video history and processing images.
-- `src/ytmusic/ytmusic.ts`: Contains the YTMusic class for interacting with YouTube Music API.
+Para probar el circuito sin credenciales: establece COVER_FILE con la ruta de un PNG/JPEG local y ejecuta bun start. El archivo se vuelve a leer en cada actualizaciÃ³n, Ãºtil para probar cambios de carÃ¡tula.

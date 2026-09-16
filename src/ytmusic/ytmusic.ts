@@ -41,7 +41,7 @@ function initializeHeaders(browserJson: BrowserJson) {
   };
 
   const sapisid = browserJson.cookie
-    .split("; ")
+    .split(";").map((c) => c.trim())
     .find((c) => c.startsWith("__Secure-3PAPISID="))
     ?.split("=")[1];
 
@@ -66,7 +66,7 @@ function initializeContext() {
 }
 
 async function getVisitorId(headersBase: Record<string, string>) {
-  const res = await axios.get(YTM_DOMAIN, { headers: { "user-agent": headersBase["user-agent"], cookie: headersBase.cookie } });
+  const res = await axios.get(YTM_DOMAIN, { headers: { "user-agent": headersBase["user-agent"], cookie: headersBase.cookie }, timeout: 15000, maxContentLength: 8000000 });
   const match = res.data.match(/ytcfg\.set\s*\(\s*({.+?})\s*\)\s*;/);
   let visitor_id = "";
   if (match) {
@@ -81,16 +81,19 @@ async function getVisitorId(headersBase: Record<string, string>) {
 class YTMusic {
   private context: any;
   private headers: Record<string, string>;
+  private browserJson: BrowserJson;
 
   constructor() {
     logger.debug("YTMusic initialized.");
     const bj = requireEnvBrowserJson();
+    this.browserJson = bj;
     this.context = initializeContext();
     this.headers = initializeHeaders(bj);
   }
 
   private async sendRequest(endpoint: string, body: any, additionalParams: string = "") {
-    const payload = { ...body, ...this.context };
+    this.headers = { ...this.headers, ...initializeHeaders(this.browserJson) };
+    const payload = { ...body, ...initializeContext() };
     if (!this.headers["X-Goog-Visitor-Id"]) {
       const visitorId = await getVisitorId(this.headers);
       this.headers = { ...this.headers, ...visitorId };
@@ -99,7 +102,7 @@ class YTMusic {
     try {
       logger.debug(`POST ${endpoint}`);
       const url = `${YTM_BASE_API}${endpoint}${YTM_PARAMS}${additionalParams}`;
-      const response = await axios.post(url, payload, { headers: this.headers });
+      const response = await axios.post(url, payload, { headers: this.headers, timeout: 15000, maxContentLength: 8000000 });
       logger.debug(`Response ${endpoint}: ${response.status}`);
       return response.data;
     } catch (error: any) {
