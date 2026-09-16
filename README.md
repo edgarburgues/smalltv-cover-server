@@ -47,7 +47,7 @@ La app nueva es **smalltv-cover-edgar**, en el grupo **YoutubeMusicSVG**, suscri
 - Estado: https://smalltv-cover-edgar.azurewebsites.net/health
 - URL para el firmware ESP8266: http://smalltv-cover-edgar.azurewebsites.net/api/cover.rgb565
 - Tambien sirve HTTPS para otros clientes. El firmware actual usa HTTP; la caratula se publica sin autenticacion. BROWSER_JSON nunca se entrega al dispositivo.
-- Always On esta activado en la nueva app.
+- Always On esta desactivado. Tras un periodo sin peticiones puede haber un arranque en frio; el firmware consulta cada 10 segundos mientras esta encendido.
 
 El adaptador azure.ts ejecuta el mismo codigo de caratulas con Node.js 22, usando el servidor HTTP estandar. El arranque Bun y Docker sigue disponible.
 
